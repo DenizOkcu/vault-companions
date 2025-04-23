@@ -7,10 +7,7 @@
 
 # npm
 node_modules
-
-# Don't include the compiled main.js file in the repo.
-# They should be uploaded to GitHub releases instead.
-main.js
+npm-debug.log
 
 # Exclude sourcemaps
 *.map
@@ -20,3 +17,13 @@ data.json
 
 # Exclude macOS Finder (System Explorer) View States
 .DS_Store
+
+# Environment variables
+.env
+
+# Build output
+*.js
+!esbuild.config.js
+!rollup.config.js
+!.eslintrc.js
+dist/
