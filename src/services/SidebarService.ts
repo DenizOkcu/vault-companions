@@ -162,4 +162,18 @@ export class SidebarService {
     workspace.revealLeaf(this.sidebarLeaf);
     this.focusInputInSidebarView();
   }
+
+  // Ensure the sidebar is open without toggling it closed
+  async ensureSidebarOpen(): Promise<void> {
+    const workspace = this.app.workspace as Workspace & { rightSplit?: any };
+    const rightSplit = workspace.rightSplit;
+
+    // Only open the sidebar if it's collapsed
+    if (rightSplit?.collapsed) {
+      rightSplit.expand();
+    }
+
+    // Make sure our view is visible and active
+    await this.getOrCreateSidebarLeaf();
+  }
 }

@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf } from "obsidian";
+import { ItemView, WorkspaceLeaf, setIcon } from "obsidian";
 
 export const VIEW_TYPE_SIDEBAR = "modern-sidebar-view";
 
@@ -6,6 +6,7 @@ export class SidebarView extends ItemView {
   private messageContentEl: HTMLElement;
   private chatInputEl: HTMLTextAreaElement;
   private onMessageSubmit: ((message: string) => void) | null = null;
+  private onNewChat: (() => void) | null = null;
 
   constructor(leaf: WorkspaceLeaf) {
     super(leaf);
@@ -28,10 +29,33 @@ export class SidebarView extends ItemView {
     this.onMessageSubmit = handler;
   }
 
+  // Set the new chat handler callback
+  setNewChatHandler(handler: () => void): void {
+    this.onNewChat = handler;
+  }
+
   // Public method to focus the input
   focusInput(): void {
     if (this.chatInputEl) {
       this.chatInputEl.focus();
+    }
+  }
+
+  // Clear all messages from the conversation
+  clearMessages(): void {
+    if (this.messageContentEl) {
+      // Keep only elements that aren't messages
+      const nonMessageElements = Array.from(this.messageContentEl.children).filter(
+        (el) => !el.classList.contains("companion-message")
+      );
+
+      // Clear the container
+      this.messageContentEl.empty();
+
+      // Re-add non-message elements like welcome message
+      nonMessageElements.forEach((el) => {
+        this.messageContentEl.appendChild(el);
+      });
     }
   }
 
@@ -113,17 +137,42 @@ export class SidebarView extends ItemView {
     this.messageContentEl.style.flexDirection = "column";
     this.messageContentEl.style.justifyContent = "flex-start";
 
-    // Add a welcome message
-    const welcomeEl = this.messageContentEl.createDiv({
+    // Create a header container for welcome message and new chat button
+    const headerContainer = this.messageContentEl.createDiv({
+      cls: "companion-header",
+    });
+    headerContainer.style.display = "flex";
+    headerContainer.style.justifyContent = "space-between";
+    headerContainer.style.alignItems = "center";
+    headerContainer.style.marginBottom = "10px";
+    headerContainer.style.backgroundColor = "var(--background-modifier-form-field)";
+    headerContainer.style.borderRadius = "12px";
+    headerContainer.style.padding = "8px 12px";
+
+    // Add welcome message to the header
+    const welcomeEl = headerContainer.createDiv({
       cls: "companion-welcome",
     });
-    welcomeEl.style.marginBottom = "10px";
-    welcomeEl.style.padding = "8px 12px";
-    welcomeEl.style.backgroundColor = "var(--background-modifier-form-field)";
     welcomeEl.style.color = "var(--text-normal)";
-    welcomeEl.style.borderRadius = "12px";
     welcomeEl.style.textAlign = "center";
+    welcomeEl.style.flexGrow = "1";
     welcomeEl.textContent = "Welcome to Vault Companions!";
+
+    // Add new chat button
+    const newChatButton = headerContainer.createDiv({
+      cls: "companion-new-chat-button clickable-icon",
+    });
+    setIcon(newChatButton, "plus");
+    newChatButton.style.cursor = "pointer";
+    newChatButton.style.marginLeft = "8px";
+    newChatButton.setAttribute("aria-label", "New Chat");
+
+    // Add click event to the new chat button
+    newChatButton.addEventListener("click", () => {
+      if (this.onNewChat) {
+        this.onNewChat();
+      }
+    });
 
     // Create input container for the bottom
     const inputContainer = mainContainer.createDiv({
