@@ -5,6 +5,7 @@ export const VIEW_TYPE_SIDEBAR = "modern-sidebar-view";
 export class SidebarView extends ItemView {
   private messageContentEl: HTMLElement;
   private chatInputEl: HTMLTextAreaElement;
+  private loadingEl: HTMLElement | null = null;
   private onMessageSubmit: ((message: string) => void) | null = null;
   private onNewChat: (() => void) | null = null;
 
@@ -38,6 +39,47 @@ export class SidebarView extends ItemView {
   focusInput(): void {
     if (this.chatInputEl) {
       this.chatInputEl.focus();
+    }
+  }
+
+  // Show/hide loading indicator
+  setLoading(isLoading: boolean): void {
+    if (isLoading) {
+      // Create loading indicator if it doesn't exist
+      if (!this.loadingEl && this.messageContentEl) {
+        this.loadingEl = this.messageContentEl.createDiv({
+          cls: "companion-loading",
+        });
+
+        // Style the loading indicator
+        this.loadingEl.style.textAlign = "left";
+        this.loadingEl.style.marginBottom = "8px";
+        this.loadingEl.style.padding = "8px 12px";
+        this.loadingEl.style.backgroundColor = "var(--background-modifier-form-field)";
+        this.loadingEl.style.color = "var(--text-muted)";
+        this.loadingEl.style.borderRadius = "12px 12px 12px 0";
+        this.loadingEl.style.maxWidth = "80%";
+        this.loadingEl.style.display = "flex";
+        this.loadingEl.style.alignItems = "center";
+
+        // Create the dots animation
+        const dotsContainer = this.loadingEl.createSpan();
+        dotsContainer.textContent = "Thinking";
+
+        const dots = this.loadingEl.createSpan({
+          cls: "loading-dots",
+        });
+        dots.textContent = "...";
+
+        // Scroll to show the loading indicator
+        this.scrollToBottom();
+      }
+    } else {
+      // Remove loading indicator if it exists
+      if (this.loadingEl) {
+        this.loadingEl.remove();
+        this.loadingEl = null;
+      }
     }
   }
 

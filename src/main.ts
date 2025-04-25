@@ -3,6 +3,7 @@ import { SidebarView, VIEW_TYPE_SIDEBAR } from "./views/SidebarView";
 import { SidebarService } from "./services/SidebarService";
 import { ChatService } from "./services/ChatService";
 import { EditorService } from "./services/EditorService";
+import { OllamaService } from "./services/OllamaService";
 
 export default class SidebarPlugin extends Plugin {
   private sidebarService: SidebarService;
@@ -74,5 +75,7 @@ export default class SidebarPlugin extends Plugin {
 
     // Add ribbon icon for quick access
     this.addRibbonIcon("message-circle", "Toggle Sidebar", () => this.sidebarService.toggleSidebar());
+
+    console.log("Vault Companions plugin loaded with Ollama integration");
   }
 }

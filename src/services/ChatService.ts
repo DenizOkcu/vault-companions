@@ -1,16 +1,14 @@
 import { App, TFile, normalizePath } from "obsidian";
 import { SidebarView } from "../views/SidebarView";
 import { EditorService } from "./EditorService";
-
-interface ChatMessage {
-  role: "user" | "assistant";
-  content: string;
-}
+import { AIService, AIServiceConfig, ChatMessage } from "./AiService";
+import { OllamaService } from "./OllamaService";
 
 export class ChatService {
   private app: App;
   private view: SidebarView | null = null;
   private editorService: EditorService;
+  private aiService: AIService;
   private messages: ChatMessage[] = [];
   private currentChatTitle: string = "";
   private isNewChat: boolean = true;
@@ -20,6 +18,7 @@ export class ChatService {
   constructor(app: App) {
     this.app = app;
     this.editorService = new EditorService(app);
+    this.aiService = new OllamaService(app);
   }
 
   // Register the view that will display messages
@@ -28,6 +27,21 @@ export class ChatService {
 
     // Set up the new chat handler
     view.setNewChatHandler(() => this.startNewChat());
+  }
+
+  // Set the AI service to use
+  setAIService(service: AIService): void {
+    this.aiService = service;
+  }
+
+  // Configure the AI service
+  configureAI(config: AIServiceConfig): void {
+    this.aiService.configure(config);
+  }
+
+  // Get the current AI service configuration
+  getAIConfig(): AIServiceConfig {
+    return this.aiService.getConfig();
   }
 
   // Set or update the chat title
@@ -51,7 +65,7 @@ export class ChatService {
   }
 
   // Handle sending a user message
-  sendMessage(message: string): void {
+  async sendMessage(message: string): Promise<void> {
     if (!this.view || !message.trim()) return;
 
     // If this is the first message and no title has been set, use it as title
@@ -75,9 +89,32 @@ export class ChatService {
     // Display the user message
     this.view.addUserMessage(message);
 
-    // In a real implementation, this would send the message to an API
-    // For now, simulate a response
-    this.simulateResponse(message);
+    // Show loading indicator
+    this.view.setLoading(true);
+
+    try {
+      // Get a response from the AI service
+      const response = await this.aiService.generateResponse(this.messages);
+
+      // Create and store the assistant message
+      const assistantMessage: ChatMessage = {
+        role: "assistant",
+        content: response,
+      };
+      this.messages.push(assistantMessage);
+
+      // Display the message
+      this.view.addAssistantMessage(response);
+
+      // Save the chat after each assistant response
+      this.saveCurrentChat();
+    } catch (error) {
+      console.error("Error getting AI response:", error);
+      this.view.addAssistantMessage("Sorry, I encountered an error while generating a response.");
+    } finally {
+      // Hide loading indicator
+      this.view.setLoading(false);
+    }
   }
 
   // Continue a chat from an existing file in the Companion Chats folder
@@ -198,30 +235,5 @@ export class ChatService {
     if (savedFile) {
       this.currentChatFile = savedFile;
     }
-  }
-
-  // Temporary method to simulate a response
-  private simulateResponse(userMessage: string): void {
-    if (!this.view) return;
-
-    // Simulate a delay for the response
-    setTimeout(() => {
-      if (this.view) {
-        const response = `I received your message: "${userMessage}". How can I help you with your vault?`;
-
-        // Create and store the assistant message
-        const assistantMessage: ChatMessage = {
-          role: "assistant",
-          content: response,
-        };
-        this.messages.push(assistantMessage);
-
-        // Display the message
-        this.view.addAssistantMessage(response);
-
-        // Save the chat after each assistant response
-        this.saveCurrentChat();
-      }
-    }, 1000);
   }
 }

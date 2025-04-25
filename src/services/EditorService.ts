@@ -21,11 +21,24 @@ export class EditorService {
 
     if (!folderExists) {
       try {
-        await this.app.vault.createFolder(folderPath);
-        console.log(`Created "${this.chatFolder}" folder for storing chat conversations`);
+        // Check if the folder exists again right before creating it (safety check)
+        const folderExistsDoubleCheck = await this.app.vault.adapter.exists(folderPath);
+        if (!folderExistsDoubleCheck) {
+          await this.app.vault.createFolder(folderPath);
+          console.log(`Created "${this.chatFolder}" folder for storing chat conversations`);
+        } else {
+          console.log(`"${this.chatFolder}" folder already exists`);
+        }
       } catch (error) {
-        console.error(`Failed to create "${this.chatFolder}" folder:`, error);
+        // Only log errors that aren't about the folder already existing
+        if (error instanceof Error && !error.message.includes("already exists")) {
+          console.error(`Failed to create "${this.chatFolder}" folder:`, error);
+        } else {
+          console.log(`"${this.chatFolder}" folder already exists`);
+        }
       }
+    } else {
+      console.debug(`"${this.chatFolder}" folder already exists`);
     }
   }
 

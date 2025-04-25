@@ -27,3 +27,6 @@ data.json
 !rollup.config.js
 !.eslintrc.js
 dist/
+
+# Examples folder
+examples/
