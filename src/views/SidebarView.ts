@@ -5,6 +5,7 @@ export const VIEW_TYPE_SIDEBAR = "modern-sidebar-view";
 export class SidebarView extends ItemView {
   private messageContentEl: HTMLElement;
   private chatInputEl: HTMLTextAreaElement;
+  private onMessageSubmit: ((message: string) => void) | null = null;
 
   constructor(leaf: WorkspaceLeaf) {
     super(leaf);
@@ -22,11 +23,66 @@ export class SidebarView extends ItemView {
     return "message-circle";
   }
 
+  // Set the message handler callback
+  setMessageHandler(handler: (message: string) => void): void {
+    this.onMessageSubmit = handler;
+  }
+
   // Public method to focus the input
   focusInput(): void {
     if (this.chatInputEl) {
       this.chatInputEl.focus();
     }
+  }
+
+  // Add a user message to the conversation - view only
+  addUserMessage(message: string): void {
+    const messageEl = this.messageContentEl.createDiv({
+      cls: "companion-message user-message",
+    });
+
+    // Style the user message
+    messageEl.style.textAlign = "right";
+    messageEl.style.marginBottom = "8px";
+    messageEl.style.padding = "8px 12px";
+    messageEl.style.backgroundColor = "var(--interactive-accent)";
+    messageEl.style.color = "var(--text-on-accent)";
+    messageEl.style.borderRadius = "12px 12px 0 12px";
+    messageEl.style.maxWidth = "80%";
+    messageEl.style.marginLeft = "auto";
+    messageEl.style.wordBreak = "break-word";
+
+    messageEl.textContent = message;
+
+    // Scroll to the bottom of the conversation
+    this.scrollToBottom();
+  }
+
+  // Add an assistant message to the conversation - view only
+  addAssistantMessage(message: string): void {
+    const messageEl = this.messageContentEl.createDiv({
+      cls: "companion-message assistant-message",
+    });
+
+    // Style the assistant message
+    messageEl.style.textAlign = "left";
+    messageEl.style.marginBottom = "8px";
+    messageEl.style.padding = "8px 12px";
+    messageEl.style.backgroundColor = "var(--background-modifier-form-field)";
+    messageEl.style.color = "var(--text-normal)";
+    messageEl.style.borderRadius = "12px 12px 12px 0";
+    messageEl.style.maxWidth = "80%";
+    messageEl.style.wordBreak = "break-word";
+
+    messageEl.textContent = message;
+
+    // Scroll to the bottom of the conversation
+    this.scrollToBottom();
+  }
+
+  // Helper to scroll to the bottom of the conversation
+  scrollToBottom(): void {
+    this.messageContentEl.scrollTop = this.messageContentEl.scrollHeight;
   }
 
   async onOpen() {
@@ -52,12 +108,22 @@ export class SidebarView extends ItemView {
     this.messageContentEl.style.overflow = "auto";
     this.messageContentEl.style.padding = "10px";
 
+    // Explicitly set the flex direction to ensure correct message ordering
+    this.messageContentEl.style.display = "flex";
+    this.messageContentEl.style.flexDirection = "column";
+    this.messageContentEl.style.justifyContent = "flex-start";
+
     // Add a welcome message
     const welcomeEl = this.messageContentEl.createDiv({
-      text: "Welcome to Vault Companions!",
       cls: "companion-welcome",
     });
     welcomeEl.style.marginBottom = "10px";
+    welcomeEl.style.padding = "8px 12px";
+    welcomeEl.style.backgroundColor = "var(--background-modifier-form-field)";
+    welcomeEl.style.color = "var(--text-normal)";
+    welcomeEl.style.borderRadius = "12px";
+    welcomeEl.style.textAlign = "center";
+    welcomeEl.textContent = "Welcome to Vault Companions!";
 
     // Create input container for the bottom
     const inputContainer = mainContainer.createDiv({
@@ -94,11 +160,16 @@ export class SidebarView extends ItemView {
         event.preventDefault(); // Prevent default Enter behavior
         const message = this.chatInputEl.value.trim();
         if (message) {
-          // In the future, this will handle sending messages
-          console.log("Message entered:", message);
+          // Call the message handler if set
+          if (this.onMessageSubmit) {
+            this.onMessageSubmit(message);
+          }
 
-          // For now, just clear the input
+          // Clear the input
           this.chatInputEl.value = "";
+
+          // Reset textarea height
+          this.autoResizeTextarea();
         }
       }
     });
