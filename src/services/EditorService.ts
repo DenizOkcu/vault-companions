@@ -44,8 +44,14 @@ export class EditorService {
       return null;
     }
 
+    // Special handling for "Chat: " prefix - remove colon for filename but keep it in content
+    let filenameTitle = chatTitle;
+    if (chatTitle.startsWith("Chat: ")) {
+      filenameTitle = "Chat " + chatTitle.substring(6);
+    }
+
     // Create a valid filename
-    const sanitizedTitle = chatTitle.replace(/[\\/:*?"<>|]/g, "-");
+    const sanitizedTitle = filenameTitle.replace(/[\\/:*?"<>|]/g, "-");
 
     try {
       // Format the content
@@ -100,5 +106,12 @@ export class EditorService {
     return folder.children
       .filter((file) => file instanceof TFile && file.extension === "md")
       .map((file) => file as TFile);
+  }
+
+  /**
+   * Returns the normalized path to the chat folder
+   */
+  getChatFolderPath(): string {
+    return normalizePath(this.chatFolder);
   }
 }

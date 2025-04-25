@@ -49,6 +49,29 @@ export default class SidebarPlugin extends Plugin {
       },
     });
 
+    // Add command to use current note as chat
+    this.addCommand({
+      id: "use-current-note-as-chat",
+      name: "Use Current Note as Chat",
+      checkCallback: (checking) => {
+        // Make sure we have an active file
+        const activeFile = this.app.workspace.getActiveFile();
+
+        if (checking) {
+          // If just checking, return true if there's an active file
+          return !!activeFile;
+        }
+
+        // Ensure sidebar is open
+        this.sidebarService.ensureSidebarOpen().then(() => {
+          // Process the current note
+          this.chatService.processCurrentNote();
+        });
+
+        return true;
+      },
+    });
+
     // Add ribbon icon for quick access
     this.addRibbonIcon("message-circle", "Toggle Sidebar", () => this.sidebarService.toggleSidebar());
   }
