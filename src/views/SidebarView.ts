@@ -1,9 +1,11 @@
-import { ItemView, WorkspaceLeaf, setIcon } from "obsidian";
+import { ItemView, WorkspaceLeaf, setIcon, MarkdownView, MarkdownRenderer } from "obsidian";
 
 export const VIEW_TYPE_SIDEBAR = "modern-sidebar-view";
 
 export class SidebarView extends ItemView {
   private messageContentEl: HTMLElement;
+  private markdownViewContainer: HTMLElement;
+  private markdownContent: string = "";
   private chatInputEl: HTMLTextAreaElement;
   private loadingEl: HTMLElement | null = null;
   private onMessageSubmit: ((message: string) => void) | null = null;
@@ -71,79 +73,89 @@ export class SidebarView extends ItemView {
         });
         dots.textContent = "...";
 
-        // Scroll to show the loading indicator
-        this.scrollToBottom();
+        // Append a temporary indicator to the markdown content
+        this.markdownContent += "\n\n> [!info] Thinking...\n";
+        this.renderMarkdown();
       }
     } else {
       // Remove loading indicator if it exists
       if (this.loadingEl) {
         this.loadingEl.remove();
         this.loadingEl = null;
+
+        // Remove the thinking indicator from markdown
+        this.markdownContent = this.markdownContent.replace("\n\n> [!info] Thinking...\n", "");
+        this.renderMarkdown();
       }
     }
   }
 
   // Clear all messages from the conversation
   clearMessages(): void {
-    if (this.messageContentEl) {
-      // Keep only elements that aren't messages
-      const nonMessageElements = Array.from(this.messageContentEl.children).filter(
-        (el) => !el.classList.contains("companion-message")
-      );
-
-      // Clear the container
-      this.messageContentEl.empty();
-
-      // Re-add non-message elements like welcome message
-      nonMessageElements.forEach((el) => {
-        this.messageContentEl.appendChild(el);
-      });
-    }
+    this.markdownContent = "# New Chat\n\n";
+    this.renderMarkdown();
   }
 
-  // Add a user message to the conversation - view only
+  // Add a user message to the conversation
   addUserMessage(message: string): void {
-    const messageEl = this.messageContentEl.createDiv({
-      cls: "companion-message user-message",
-    });
+    this.markdownContent += `## User\n${message}\n\n<hr class="user-separator">\n\n`;
+    this.renderMarkdown();
+  }
 
-    // Style the user message
-    messageEl.style.textAlign = "right";
-    messageEl.style.marginBottom = "8px";
-    messageEl.style.padding = "8px 12px";
-    messageEl.style.backgroundColor = "var(--interactive-accent)";
-    messageEl.style.color = "var(--text-on-accent)";
-    messageEl.style.borderRadius = "12px 12px 0 12px";
-    messageEl.style.maxWidth = "80%";
-    messageEl.style.marginLeft = "auto";
-    messageEl.style.wordBreak = "break-word";
+  // Add an assistant message to the conversation
+  addAssistantMessage(message: string): void {
+    this.markdownContent += `## Assistant\n${message}\n\n<hr class="assistant-separator">\n\n`;
+    this.renderMarkdown();
+  }
 
-    messageEl.textContent = message;
+  // Helper to render markdown content in the view
+  private async renderMarkdown(): Promise<void> {
+    if (!this.markdownViewContainer) return;
 
-    // Scroll to the bottom of the conversation
+    // Clear the container
+    this.markdownViewContainer.empty();
+
+    // Render markdown
+    await MarkdownRenderer.renderMarkdown(this.markdownContent, this.markdownViewContainer, "", this);
+
+    // Add minimal styling for readability
+    this.applyMinimalStyling();
+
+    // Scroll to the bottom
     this.scrollToBottom();
   }
 
-  // Add an assistant message to the conversation - view only
-  addAssistantMessage(message: string): void {
-    const messageEl = this.messageContentEl.createDiv({
-      cls: "companion-message assistant-message",
+  // Apply minimal styling to the rendered markdown elements
+  private applyMinimalStyling(): void {
+    if (!this.markdownViewContainer) return;
+
+    // Style the title
+    const titleEl = this.markdownViewContainer.querySelector("h1") as HTMLElement;
+    if (titleEl) {
+      titleEl.style.marginTop = "0";
+      titleEl.style.marginBottom = "16px";
+      titleEl.style.fontSize = "1.5em";
+      titleEl.style.textAlign = "center";
+    }
+
+    // Style role headings
+    const headings = this.markdownViewContainer.querySelectorAll("h2") as NodeListOf<HTMLElement>;
+    headings.forEach((heading) => {
+      heading.style.marginTop = "1em";
+      heading.style.marginBottom = "0.5em";
+      heading.style.fontSize = "0.9em";
+      heading.style.fontWeight = "bold";
+      heading.style.color = "var(--text-normal)";
     });
 
-    // Style the assistant message
-    messageEl.style.textAlign = "left";
-    messageEl.style.marginBottom = "8px";
-    messageEl.style.padding = "8px 12px";
-    messageEl.style.backgroundColor = "var(--background-modifier-form-field)";
-    messageEl.style.color = "var(--text-normal)";
-    messageEl.style.borderRadius = "12px 12px 12px 0";
-    messageEl.style.maxWidth = "80%";
-    messageEl.style.wordBreak = "break-word";
-
-    messageEl.textContent = message;
-
-    // Scroll to the bottom of the conversation
-    this.scrollToBottom();
+    // Style horizontal rules for clean separation
+    const hrs = this.markdownViewContainer.querySelectorAll("hr") as NodeListOf<HTMLElement>;
+    hrs.forEach((hr) => {
+      hr.style.margin = "1em 0";
+      hr.style.border = "none";
+      hr.style.height = "1px";
+      hr.style.backgroundColor = "var(--background-modifier-border)";
+    });
   }
 
   // Helper to scroll to the bottom of the conversation
@@ -164,6 +176,40 @@ export class SidebarView extends ItemView {
     mainContainer.style.flexDirection = "column";
     mainContainer.style.height = "100%";
 
+    // Create header with new chat button
+    const headerContainer = mainContainer.createDiv({
+      cls: "companion-header",
+    });
+
+    // Style the header
+    headerContainer.style.display = "flex";
+    headerContainer.style.justifyContent = "space-between";
+    headerContainer.style.alignItems = "center";
+    headerContainer.style.padding = "8px 12px";
+    headerContainer.style.borderBottom = "1px solid var(--background-modifier-border)";
+
+    // Add title to the header
+    const titleEl = headerContainer.createDiv({
+      cls: "companion-title",
+    });
+    titleEl.style.fontWeight = "bold";
+    titleEl.textContent = "Vault Companions";
+
+    // Add new chat button
+    const newChatButton = headerContainer.createDiv({
+      cls: "companion-new-chat-button clickable-icon",
+    });
+    setIcon(newChatButton, "plus");
+    newChatButton.style.cursor = "pointer";
+    newChatButton.setAttribute("aria-label", "New Chat");
+
+    // Add click event to the new chat button
+    newChatButton.addEventListener("click", () => {
+      if (this.onNewChat) {
+        this.onNewChat();
+      }
+    });
+
     // Create content area (will hold messages later)
     this.messageContentEl = mainContainer.createDiv({
       cls: "companion-content",
@@ -174,47 +220,18 @@ export class SidebarView extends ItemView {
     this.messageContentEl.style.overflow = "auto";
     this.messageContentEl.style.padding = "10px";
 
-    // Explicitly set the flex direction to ensure correct message ordering
-    this.messageContentEl.style.display = "flex";
-    this.messageContentEl.style.flexDirection = "column";
-    this.messageContentEl.style.justifyContent = "flex-start";
-
-    // Create a header container for welcome message and new chat button
-    const headerContainer = this.messageContentEl.createDiv({
-      cls: "companion-header",
+    // Create a container for the markdown view
+    this.markdownViewContainer = this.messageContentEl.createDiv({
+      cls: "markdown-view-container",
     });
-    headerContainer.style.display = "flex";
-    headerContainer.style.justifyContent = "space-between";
-    headerContainer.style.alignItems = "center";
-    headerContainer.style.marginBottom = "10px";
-    headerContainer.style.backgroundColor = "var(--background-modifier-form-field)";
-    headerContainer.style.borderRadius = "12px";
-    headerContainer.style.padding = "8px 12px";
 
-    // Add welcome message to the header
-    const welcomeEl = headerContainer.createDiv({
-      cls: "companion-welcome",
-    });
-    welcomeEl.style.color = "var(--text-normal)";
-    welcomeEl.style.textAlign = "center";
-    welcomeEl.style.flexGrow = "1";
-    welcomeEl.textContent = "Welcome to Vault Companions!";
+    // Style the markdown view container
+    this.markdownViewContainer.style.width = "100%";
+    this.markdownViewContainer.style.padding = "0 10px";
 
-    // Add new chat button
-    const newChatButton = headerContainer.createDiv({
-      cls: "companion-new-chat-button clickable-icon",
-    });
-    setIcon(newChatButton, "plus");
-    newChatButton.style.cursor = "pointer";
-    newChatButton.style.marginLeft = "8px";
-    newChatButton.setAttribute("aria-label", "New Chat");
-
-    // Add click event to the new chat button
-    newChatButton.addEventListener("click", () => {
-      if (this.onNewChat) {
-        this.onNewChat();
-      }
-    });
+    // Initialize with empty markdown content
+    this.markdownContent = "# New Chat\n\n";
+    this.renderMarkdown();
 
     // Create input container for the bottom
     const inputContainer = mainContainer.createDiv({
@@ -248,24 +265,18 @@ export class SidebarView extends ItemView {
     // Add event listener for the Enter key (Enter sends, Shift+Enter for new line)
     this.chatInputEl.addEventListener("keydown", (event) => {
       if (event.key === "Enter" && !event.shiftKey) {
-        event.preventDefault(); // Prevent default Enter behavior
+        event.preventDefault();
         const message = this.chatInputEl.value.trim();
-        if (message) {
-          // Call the message handler if set
-          if (this.onMessageSubmit) {
-            this.onMessageSubmit(message);
-          }
 
-          // Clear the input
+        if (message && this.onMessageSubmit) {
+          this.onMessageSubmit(message);
           this.chatInputEl.value = "";
-
-          // Reset textarea height
           this.autoResizeTextarea();
         }
       }
     });
 
-    // Auto-resize textarea based on content
+    // Auto-resize the textarea when content changes
     this.chatInputEl.addEventListener("input", () => {
       this.autoResizeTextarea();
     });
@@ -293,17 +304,20 @@ export class SidebarView extends ItemView {
     );
   }
 
-  // Auto-resize the textarea based on content
   private autoResizeTextarea() {
-    // Reset height to auto to get the correct scrollHeight
-    this.chatInputEl.style.height = "auto";
+    if (this.chatInputEl) {
+      // Reset height to auto to get the real scrollHeight
+      this.chatInputEl.style.height = "auto";
 
-    // Set the height to match content (with min and max limits)
-    const newHeight = Math.min(120, Math.max(36, this.chatInputEl.scrollHeight));
-    this.chatInputEl.style.height = newHeight + "px";
+      // Calculate new height (clamped to max height)
+      const newHeight = Math.min(this.chatInputEl.scrollHeight, 120);
+
+      // Set new height
+      this.chatInputEl.style.height = `${newHeight}px`;
+    }
   }
 
   async onClose() {
-    this.containerEl.empty();
+    // Clean up any event listeners or resources if needed
   }
 }
